@@ -205,3 +205,51 @@ Everything below builds these pieces one at a time.
   (scanning + sorting) is the expensive part; caching the answer skips all of it.
 - *Graceful fallback:* treating a dead node as a miss means a Redis outage degrades performance
   but never breaks the feature.
+
+---
+
+## Step 5 — Trending searches (recency-aware ranking)
+
+**What we did**
+- `server/trending.js`: keeps an **in-memory map** of each query's *recent activity* score.
+  Every `/search` adds +1 (`bump`). A timer **decays** all scores (×0.5 every 30s) so spikes
+  fade. `rerank()` blends recency into the count-based candidate pool; `getTrending()` lists
+  the most-recent queries.
+- `server/db.js`: added `getCandidates(prefix)` (top 50 by count, the pool to re-rank) and
+  `getCount(query)`.
+- `server/index.js`: `/suggest` now caches the **candidate pool** and blends recency in
+  **live**; `/search` calls `bump`; added `GET /trending`; the decay loop starts on boot.
+- UI: a **Trending now** panel that updates as you search; clicking an item searches it.
+- **Demonstrated it:** for prefix `piz`, `pizzo` normally ranks #9 by count (78k) — after
+  searching it 3 times it jumped to **#1**, above `pizza` (14.7M). Meanwhile `pizza`'s recent
+  score decayed 5 → 0.625, showing spikes don't last forever.
+
+**The 5 points the assignment asks us to explain**
+1. **How recent searches are tracked:** an in-memory `Map<query, score>`; each search adds +1.
+2. **How recent activity affects ranking:** final `score = count + weight * recent`, where
+   `weight` = the top candidate's count, so even one recent search is worth ~one "most popular
+   item" and visibly lifts the query.
+3. **How we avoid permanent over-ranking:** exponential **decay** (×0.5 every 30s); once a
+   query stops being searched its recent score shrinks to ~0 and it falls back down.
+4. **How the cache stays correct when rankings change:** we **don't cache the final order** —
+   only the stable count-based candidate pool (with a 60s TTL). Recency is applied fresh on
+   every request, so trending is always live. (When counts themselves change, the batch writer
+   invalidates the affected prefix — Step 6.)
+5. **Trade-offs (freshness vs latency vs complexity):** keeping recency in memory makes it
+   instant and always-fresh and adds **zero** database writes, but it's per-process and resets
+   if the server restarts — fine for this assignment's demo. Caching only the candidate pool
+   keeps reads fast *and* rankings fresh, at the cost of a tiny re-rank on each request.
+
+**Definitions**
+- **Recency / trending** — favouring things searched *recently*, not just *often overall*.
+- **Decay** — repeatedly shrinking the recent scores so old activity fades automatically.
+- **Blended score** — a single number combining all-time count and recent activity, used to
+  sort suggestions.
+
+**Why these choices**
+- *In-memory recency, not a DB column:* recency changes on every search; writing it to disk each
+  time would create the exact write pressure Step 6 is meant to remove.
+- *Cache the candidate pool, not the final list:* gives us fast reads **and** always-live
+  trending — the cleanest answer to "how is the cache updated when rankings change".
+- *Weight = top candidate count:* makes recency impactful on any dataset without a hand-tuned
+  magic number that would break if the data scale changed.

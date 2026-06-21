@@ -143,6 +143,27 @@ docker exec typeahead-redis-2 redis-cli keys 'sugg:*'
 
 `/suggest` responses also include `"cache": "HIT"|"MISS"` and the owning `"node"`.
 
+**Example — `GET /trending`:**
+
+```bash
+curl "http://localhost:3000/trending?n=5"
+```
+```json
+{ "trending": [ { "query": "pizzo", "recent": 3, "count": 78549 } ] }
+```
+
+**Basic vs. recency-aware ranking (live demo).** For prefix `piz`, `pizzo` ranks #9 by
+all-time count. After searching it 3 times, recency lifts it to #1:
+
+```
+BASIC (by count)         ENHANCED (count + recency)
+1. pizza   14,763,787    1. pizzo   (recent=3)   ← jumped from #9
+2. pizzeria   923,597    2. pizza   (recent=0.6) ← spike decaying
+...                      ...
+```
+
+Recent scores **decay** (×0.5 every 30s), so a short-lived spike fades back down on its own.
+
 _More endpoint examples are added as each is built._
 
 ---

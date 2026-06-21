@@ -14,8 +14,9 @@
 const path = require('path');
 const express = require('express');
 
-const { getSuggestions, recordSearch } = require('./db');
+const { getCandidates, recordSearch } = require('./db');
 const cache = require('./cache');
+const trending = require('./trending');
 const { log, getRecent } = require('./logger');
 
 const app = express();
@@ -49,15 +50,19 @@ app.get('/suggest', async (req, res) => {
   // Which Redis node owns this prefix (consistent hashing).
   const node = cache.getNode(cache.cacheKey(q)).name;
 
-  // 1) Try the cache.
-  let suggestions = await cache.getCached(q);
-  let hit = suggestions !== null;
+  // 1) Try the cache. We cache the *count-based candidate pool* (stable), NOT the
+  //    final order — recency is blended in fresh below so trending is always live.
+  let candidates = await cache.getCached(q);
+  let hit = candidates !== null;
 
-  // 2) On a miss, fall back to the database and populate the cache.
+  // 2) On a miss, read the candidate pool from SQLite and cache it (with a TTL).
   if (!hit) {
-    suggestions = getSuggestions(q);
-    await cache.setCached(q, suggestions);
+    candidates = getCandidates(q);
+    await cache.setCached(q, candidates);
   }
+
+  // 3) Blend in recent activity and take the top 10 (the "enhanced" ranking).
+  const suggestions = trending.rerank(q, candidates);
 
   const ms = Date.now() - startedAt;
   log('SUGGEST', { q, node, cache: hit ? 'HIT' : 'MISS', results: suggestions.length, ms });
@@ -88,10 +93,19 @@ app.post('/search', (req, res) => {
   const query = (req.body && (req.body.query || req.body.q)) || '';
 
   const recorded = recordSearch(query);
+  if (recorded) trending.bump(recorded); // count this toward recent activity
   log('SEARCH', { query: recorded || '(empty)', recorded: recorded !== null });
 
   // The assignment asks specifically for this response shape.
   res.json({ message: 'Searched' });
+});
+
+// --- GET /trending ------------------------------------------------------------
+// The queries with the most recent activity right now (powers the UI panel).
+app.get('/trending', (req, res) => {
+  const n = parseInt(req.query.n, 10) || 10;
+  const items = trending.getTrending(n);
+  res.json({ trending: items });
 });
 
 // --- GET /logs?n=<number> -----------------------------------------------------
@@ -105,6 +119,9 @@ app.get('/logs', (req, res) => {
 app.listen(PORT, async () => {
   log('SERVER', { msg: 'started', url: `http://localhost:${PORT}` });
   console.log(`Open http://localhost:${PORT}`);
+
+  // Start the recency decay loop so short-lived spikes fade over time.
+  trending.startDecay();
 
   // Report which cache nodes are reachable (so you know Redis/Docker is up).
   const pings = await cache.pingAll();

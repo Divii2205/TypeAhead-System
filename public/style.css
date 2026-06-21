@@ -137,6 +137,61 @@ h1 {
   font-size: 15px;
 }
 
+/* --- Trending panel ---------------------------------------------------------- */
+.trending {
+  margin-top: 32px;
+}
+
+.trending h2 {
+  font-size: 16px;
+  margin: 0 0 8px;
+}
+
+.trending-list {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  counter-reset: rank;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  overflow: hidden;
+}
+
+.trending-item {
+  counter-increment: rank;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 12px 9px 36px;
+  position: relative;
+  cursor: pointer;
+  border-top: 1px solid var(--border);
+}
+
+.trending-item:first-child {
+  border-top: none;
+}
+
+.trending-item::before {
+  content: counter(rank);
+  position: absolute;
+  left: 12px;
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.trending-item:hover {
+  background: var(--accent-soft);
+}
+
+.trending-empty {
+  padding: 12px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
 /* --- Logs panel -------------------------------------------------------------- */
 .logs {
   margin-top: 40px;

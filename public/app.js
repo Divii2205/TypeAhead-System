@@ -16,6 +16,7 @@ const list = document.getElementById('suggestions');
 const statusEl = document.getElementById('status');
 const logsEl = document.getElementById('logs');
 const responseEl = document.getElementById('response');
+const trendingEl = document.getElementById('trending');
 
 // The suggestions currently shown, and which one is highlighted (-1 = none).
 let current = [];
@@ -147,6 +148,7 @@ async function submitSearch() {
     const data = await res.json();
     // Show the dummy response the backend returns.
     showResponse(`${data.message} — "${q}"`);
+    refreshTrending(); // reflect the new activity right away
   } catch (err) {
     showResponse('Search failed: ' + err.message, true);
   }
@@ -195,6 +197,48 @@ document.addEventListener('click', (e) => {
 // The search button submits whatever is in the box.
 button.addEventListener('click', () => submitSearch());
 
+// --- Trending panel -----------------------------------------------------------
+async function refreshTrending() {
+  try {
+    const res = await fetch('/trending?n=10');
+    const data = await res.json();
+    const items = data.trending || [];
+
+    if (items.length === 0) {
+      trendingEl.innerHTML =
+        '<li class="trending-empty">No recent searches yet — try searching a few times.</li>';
+      return;
+    }
+
+    trendingEl.innerHTML = '';
+    items.forEach((item) => {
+      const li = document.createElement('li');
+      li.className = 'trending-item';
+
+      const term = document.createElement('span');
+      term.className = 'term';
+      term.textContent = item.query;
+
+      const score = document.createElement('span');
+      score.className = 'count';
+      score.textContent = 'recent ' + item.recent;
+
+      li.appendChild(term);
+      li.appendChild(score);
+
+      // Click a trending item to search it.
+      li.addEventListener('click', () => {
+        input.value = item.query;
+        submitSearch();
+      });
+
+      trendingEl.appendChild(li);
+    });
+  } catch {
+    // Ignore trending fetch errors.
+  }
+}
+
 // --- Live logs panel ----------------------------------------------------------
 async function refreshLogs() {
   try {
@@ -212,3 +256,7 @@ async function refreshLogs() {
 
 setInterval(refreshLogs, 1500);
 refreshLogs();
+
+// Refresh trending periodically too (so decay is visible over time).
+setInterval(refreshTrending, 3000);
+refreshTrending();

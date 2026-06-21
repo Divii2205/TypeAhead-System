@@ -21,6 +21,11 @@ db.pragma('journal_mode = WAL');
 // How many suggestions we ever return (the assignment says "at most 10").
 const LIMIT = 10;
 
+// How many candidates we pull by count before re-ranking with recency (Step 5).
+// We fetch more than 10 so a "trending" word that isn't quite top-10 by all-time
+// count can still rise into the final top 10 once its recent activity is added.
+const CANDIDATE_LIMIT = 50;
+
 // --- The prefix-search statement (compiled once, reused for every keystroke) ---
 //
 // HOW THE FAST PREFIX SEARCH WORKS:
@@ -103,4 +108,40 @@ function getSuggestions(rawPrefix) {
   return rows; // already [{query, count}, ...]; empty array if nothing matched
 }
 
-module.exports = { db, getSuggestions, recordSearch };
+// --- Candidates for recency-aware ranking (Step 5) ----------------------------
+// Same prefix range scan, but returns more rows (CANDIDATE_LIMIT) so the trending
+// layer has a pool to re-rank. Sorted by count so the pool is the most relevant.
+const candidatesStmt = db.prepare(`
+  SELECT query, count
+  FROM queries
+  WHERE query >= @lo AND query < @hi
+  ORDER BY count DESC
+  LIMIT ${CANDIDATE_LIMIT}
+`);
+
+/**
+ * Get up to CANDIDATE_LIMIT prefix matches (by count) to feed the trending re-rank.
+ * @param {string} rawPrefix
+ * @returns {Array<{query: string, count: number}>}
+ */
+function getCandidates(rawPrefix) {
+  if (typeof rawPrefix !== 'string') return [];
+  const prefix = rawPrefix.trim().toLowerCase();
+  if (prefix.length === 0) return [];
+  return candidatesStmt.all({ lo: prefix, hi: upperBound(prefix) });
+}
+
+// --- Look up a single query's count (used when a trending word isn't already
+//     in the candidate pool, e.g. a freshly-searched rare word). ---------------
+const countStmt = db.prepare('SELECT count FROM queries WHERE query = ?');
+
+/**
+ * @param {string} query - already lowercased.
+ * @returns {number|null} the count, or null if the query isn't in the store.
+ */
+function getCount(query) {
+  const row = countStmt.get(query);
+  return row ? row.count : null;
+}
+
+module.exports = { db, getSuggestions, getCandidates, getCount, recordSearch };
