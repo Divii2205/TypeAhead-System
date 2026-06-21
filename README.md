@@ -62,6 +62,31 @@ To stop the Redis nodes later: `docker compose down`.
 
 ---
 
+## Using the UI (what each part is)
+
+- **Search box** — type a prefix (e.g. `ip`, `java`). Suggestions appear instantly, ranked by
+  all-time popularity blended with recent activity. Use ↑/↓ to highlight, Enter to search, or
+  click a suggestion.
+- **Cache HIT/MISS indicator** — under the box, a live line shows whether the lookup was
+  answered from Redis (HIT) or the database (MISS), which Redis node served it, and how long it
+  took. This is the distributed cache working, made visible.
+- **Trending now** — queries getting popular recently; they rise on activity and fade via decay.
+- **Server activity log** — a live feed of `SUGGEST`, `SEARCH`, `BATCH`, and `DECAY` events,
+  with a legend explaining each. This is the evidence the system behaves as designed.
+
+## Screenshots
+
+Place images in a `screenshots/` folder and they'll render here:
+
+| | |
+|---|---|
+| ![Typeahead suggestions](screenshots/suggestions.png) | ![Cache HIT indicator](screenshots/cache-hit.png) |
+| ![Trending searches](screenshots/trending.png) | ![Activity log](screenshots/activity-log.png) |
+
+_(Add the screenshots before submitting — see the checklist note in the project chat.)_
+
+---
+
 ## Dataset
 
 This project uses the open **English Word Frequency** list — the Google Web Trillion
