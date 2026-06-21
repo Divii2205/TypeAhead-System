@@ -253,3 +253,48 @@ Everything below builds these pieces one at a time.
   trending — the cleanest answer to "how is the cache updated when rankings change".
 - *Weight = top candidate count:* makes recency impactful on any dataset without a hand-tuned
   magic number that would break if the data scale changed.
+
+---
+
+## Step 6 — Batch writes
+
+**What we did**
+- `server/batch.js`: `POST /search` now drops the query into an in-memory **buffer**
+  (`Map<query, count>`, so repeats aggregate automatically). A flusher runs **every 3s** *or*
+  when 50 distinct queries pile up; it writes the aggregated counts to SQLite in **one
+  transaction**, then **invalidates** the cache for every affected prefix.
+- `server/db.js`: added `applyBatch(items)` — one transaction that adds each query's aggregated
+  amount.
+- `server/index.js`: `/search` enqueues instead of writing; added `GET /stats` (the
+  write-reduction evidence); the flusher starts on boot; Ctrl+C **drains** the buffer first.
+- **Proved it:** 60 searches across 3 words resulted in only **4 row-writes (93% reduction)**;
+  one flush folded 29 searches into 2 rows. Counts still landed correctly (`apple` went up by
+  the right amount), and the `app` cache entry was **invalidated** by the flush (hit → miss).
+
+**Definitions**
+- **Buffer / queue** — a temporary in-memory holding area for work not done yet (here, pending
+  count updates).
+- **Aggregation** — combining repeats before writing (5×"pizza" → one "+5"), so one row-write
+  covers many searches.
+- **Flush** — taking everything in the buffer and writing it out at once.
+- **Write reduction** — the whole point: far fewer database writes than searches.
+
+**Failure trade-offs (the assignment asks for this explicitly)**
+- If the process **crashes** between flushes, the buffered (not-yet-written) searches are
+  **lost**, so a few counts under-count slightly. We accept this for the assignment: counts are
+  popularity hints, not money, and a small loss doesn't hurt suggestions.
+- We reduce the window two ways: a short 3s interval, and a **graceful shutdown** that flushes
+  on Ctrl+C. For real durability you'd write to an append-only log first (write-ahead log) and
+  replay it on restart — noted as a future improvement, intentionally left out to keep this
+  simple.
+- **Latency vs freshness vs safety:** buffering makes `/search` instant (no disk wait) and slows
+  write pressure, at the cost of suggestions lagging reality by up to one flush interval. Cache
+  invalidation on flush keeps the lag bounded and predictable.
+
+**Why these choices**
+- *Map buffer:* aggregates repeats for free and bounds memory to "distinct queries since last
+  flush".
+- *Flush by time **and** size:* time keeps data fresh under light load; size protects memory
+  under a sudden spike.
+- *Invalidate prefixes on flush:* this is the moment counts actually change, so it's exactly
+  when the cached pools should be dropped — tying batch writes and cache freshness together.

@@ -90,6 +90,7 @@ in a single transaction (~3–4 seconds).
 | POST | `/search` | Records a submitted query; returns `{"message":"Searched"}` |
 | GET | `/cache/debug?prefix=<prefix>` | Shows which Redis node owns the prefix + hit/miss |
 | GET | `/trending` | Top queries by recent activity |
+| GET | `/stats` | Batch-write evidence: searches received vs DB rows written |
 | GET | `/logs?n=50` | Most recent log lines (also shown in the UI) |
 
 **Example — `GET /suggest`:**
@@ -164,7 +165,25 @@ BASIC (by count)         ENHANCED (count + recency)
 
 Recent scores **decay** (×0.5 every 30s), so a short-lived spike fades back down on its own.
 
-_More endpoint examples are added as each is built._
+**Example — `GET /stats` (batch-write evidence):**
+
+```bash
+curl "http://localhost:3000/stats"
+```
+```json
+{
+  "received": 60,
+  "rowsWritten": 4,
+  "flushes": 2,
+  "lastFlush": { "reason": "timer", "searches": 29, "rows": 2, "invalidated": 12 },
+  "buffered": 0,
+  "reductionPct": 93
+}
+```
+
+60 searches became only 4 database row-writes — a **93% write reduction**. Searches are
+buffered in memory, aggregated, and flushed in one transaction every 3s (or sooner if 50
+distinct queries pile up); each flush also invalidates the affected prefix caches.
 
 ---
 

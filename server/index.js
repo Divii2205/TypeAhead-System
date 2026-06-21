@@ -14,9 +14,10 @@
 const path = require('path');
 const express = require('express');
 
-const { getCandidates, recordSearch } = require('./db');
+const { getCandidates } = require('./db');
 const cache = require('./cache');
 const trending = require('./trending');
+const batch = require('./batch');
 const { log, getRecent } = require('./logger');
 
 const app = express();
@@ -90,11 +91,14 @@ app.get('/cache/debug', async (req, res) => {
 // The "dummy search API". The user submits a query; we record it (count +1) and
 // reply with the required dummy message. The body is JSON: { "query": "iphone" }.
 app.post('/search', (req, res) => {
-  const query = (req.body && (req.body.query || req.body.q)) || '';
+  const raw = (req.body && (req.body.query || req.body.q)) || '';
+  const query = String(raw).trim().toLowerCase();
 
-  const recorded = recordSearch(query);
-  if (recorded) trending.bump(recorded); // count this toward recent activity
-  log('SEARCH', { query: recorded || '(empty)', recorded: recorded !== null });
+  if (query) {
+    batch.enqueue(query); // buffer the write (NOT a direct DB write anymore)
+    trending.bump(query); // count this toward recent activity (in memory)
+  }
+  log('SEARCH', { query: query || '(empty)', buffered: Boolean(query) });
 
   // The assignment asks specifically for this response shape.
   res.json({ message: 'Searched' });
@@ -106,6 +110,12 @@ app.get('/trending', (req, res) => {
   const n = parseInt(req.query.n, 10) || 10;
   const items = trending.getTrending(n);
   res.json({ trending: items });
+});
+
+// --- GET /stats ---------------------------------------------------------------
+// Batch-write evidence: searches received vs rows actually written to the DB.
+app.get('/stats', (req, res) => {
+  res.json(batch.getStats());
 });
 
 // --- GET /logs?n=<number> -----------------------------------------------------
@@ -123,6 +133,9 @@ app.listen(PORT, async () => {
   // Start the recency decay loop so short-lived spikes fade over time.
   trending.startDecay();
 
+  // Start the batch writer (periodic flush of buffered searches).
+  batch.start();
+
   // Report which cache nodes are reachable (so you know Redis/Docker is up).
   const pings = await cache.pingAll();
   const up = pings.filter((p) => p.up).map((p) => p.node);
@@ -135,3 +148,14 @@ app.listen(PORT, async () => {
     );
   }
 });
+
+// --- Graceful shutdown --------------------------------------------------------
+// On Ctrl+C, flush any buffered searches so we don't lose them on a clean exit.
+// (A hard crash can still lose the buffer — that trade-off is documented.)
+async function shutdown() {
+  log('SERVER', { msg: 'shutting down, flushing batch' });
+  await batch.drain();
+  process.exit(0);
+}
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);

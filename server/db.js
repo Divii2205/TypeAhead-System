@@ -144,4 +144,40 @@ function getCount(query) {
   return row ? row.count : null;
 }
 
-module.exports = { db, getSuggestions, getCandidates, getCount, recordSearch };
+// --- Batch write (Step 6) -----------------------------------------------------
+// Add a *given amount* to a query's count (or insert it). The batch writer has
+// already aggregated repeats (e.g. 5×"pizza"), so it passes amount = 5 once,
+// instead of running five separate +1 statements.
+const batchStmt = db.prepare(`
+  INSERT INTO queries (query, count, updated_at)
+  VALUES (@query, @amount, @now)
+  ON CONFLICT(query) DO UPDATE SET
+    count = count + excluded.count,
+    updated_at = excluded.updated_at
+`);
+
+// Wrap the whole batch in ONE transaction: many rows, a single commit to disk.
+const applyBatchTx = db.transaction((items) => {
+  const now = Date.now();
+  for (const it of items) batchStmt.run({ query: it.query, amount: it.amount, now });
+});
+
+/**
+ * Apply a batch of aggregated counts in a single transaction.
+ * @param {Array<{query: string, amount: number}>} items
+ * @returns {number} how many rows were written.
+ */
+function applyBatch(items) {
+  if (!items || items.length === 0) return 0;
+  applyBatchTx(items);
+  return items.length;
+}
+
+module.exports = {
+  db,
+  getSuggestions,
+  getCandidates,
+  getCount,
+  recordSearch,
+  applyBatch,
+};
