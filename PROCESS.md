@@ -93,3 +93,39 @@ Everything below builds these pieces one at a time.
   need a popularity number per query. The published word frequency is exactly that.
 - *The `recent` column* starts at 0 and is used later (Step 5) for trending. We add it now
   so we don't have to change the table shape later.
+
+---
+
+## Step 2 — Suggestions API + basic UI
+
+**What we did**
+- `server/db.js`: a `getSuggestions(prefix)` function that returns the top 10 words starting
+  with a prefix, most popular first. It trims + lowercases the input and handles
+  empty/missing/no-match gracefully (returns an empty list, never an error).
+- `server/index.js`: a small Express web server with:
+  - `GET /suggest?q=<prefix>` → the suggestions as JSON.
+  - `GET /logs?n=<n>` → recent log lines (so the page can show them).
+  - serving the `public/` folder as the website.
+- `public/index.html`, `style.css`, `app.js`: the search page — a search box, a dropdown
+  that fills in as you type, loading / error / "no results" messages, **arrow-key
+  navigation**, and a live **logs panel**.
+- Tested it: `/suggest?q=ip` returns 10 results in 1–4 ms; `IP` (uppercase) gives the same
+  results; empty and nonsense inputs return an empty list instead of crashing.
+
+**Definitions**
+- **Prefix search** — finding everything that *starts with* some letters (e.g. "ip" → ipod,
+  iphone…). We do it with a fast **range scan** on the indexed `query` column:
+  `query >= 'ip' AND query < 'iq'`.
+- **Endpoint / API route** — a URL the server answers, like `GET /suggest`.
+- **Debounce** — waiting a short moment (200 ms) after the user stops typing before calling
+  the server, so we don't send a request for every single keystroke. (It lives in `app.js`.)
+- **Static files** — plain files (HTML/CSS/JS) the server hands to the browser unchanged.
+
+**Why these choices**
+- *Range scan instead of `LIKE 'ip%'`:* the range form is guaranteed to use the index, so it
+  stays fast even though the table has 333k rows. (We confirmed ~1–4 ms responses.)
+- *All DB code in `db.js`:* keeps SQL in one place; the web layer just calls functions. This
+  is the "modular, readable" the rubric asks for.
+- *Debounce on the front-end:* directly satisfies "the UI should avoid unnecessary backend
+  calls".
+- *Logs panel from the start:* makes the system's behaviour visible for the demo/screenshots.

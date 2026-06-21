@@ -92,7 +92,27 @@ in a single transaction (~3–4 seconds).
 | GET | `/trending` | Top queries by recent activity |
 | GET | `/logs?n=50` | Most recent log lines (also shown in the UI) |
 
-_Request/response examples are filled in as each endpoint is built._
+**Example — `GET /suggest`:**
+
+```bash
+curl "http://localhost:3000/suggest?q=ip"
+```
+```json
+{
+  "q": "ip",
+  "count": 10,
+  "suggestions": [
+    { "query": "ip",   "count": 64162886 },
+    { "query": "ipod", "count": 36985229 },
+    { "query": "ipaq", "count": 7454622 }
+  ]
+}
+```
+
+Input is case-insensitive (`IP` == `ip`); empty, missing, or no-match input returns
+`{"count": 0, "suggestions": []}` instead of an error.
+
+_More endpoint examples are added as each is built._
 
 ---
 

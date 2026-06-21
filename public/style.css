@@ -1,0 +1,162 @@
+/* style.css — simple, clean styling for the typeahead UI. */
+
+:root {
+  --bg: #f5f6f8;
+  --card: #ffffff;
+  --border: #d9dce1;
+  --text: #1c1e21;
+  --muted: #6b7280;
+  --accent: #2563eb;
+  --accent-soft: #e8f0fe;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.app {
+  max-width: 640px;
+  margin: 48px auto;
+  padding: 0 16px;
+}
+
+h1 {
+  margin: 0 0 4px;
+  font-size: 28px;
+}
+
+.subtitle {
+  margin: 0 0 24px;
+  color: var(--muted);
+}
+
+/* --- Search box + dropdown --------------------------------------------------- */
+.search-area {
+  position: relative; /* so the dropdown can sit right under the input */
+}
+
+.search-row {
+  display: flex;
+  gap: 8px;
+}
+
+#search-input {
+  flex: 1;
+  padding: 12px 14px;
+  font-size: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  outline: none;
+}
+
+#search-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+#search-button {
+  padding: 0 18px;
+  font-size: 15px;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+#search-button:hover {
+  background: #1d4ed8;
+}
+
+/* The dropdown list of suggestions */
+.suggestions {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 4px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 10;
+}
+
+.suggestions li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* Highlight: applied both on mouse hover and on keyboard arrow navigation */
+.suggestions li:hover,
+.suggestions li.active {
+  background: var(--accent-soft);
+}
+
+.suggestions .term {
+  font-weight: 500;
+}
+
+.suggestions .count {
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Status + response ------------------------------------------------------- */
+.status {
+  min-height: 20px;
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.status.error {
+  color: #b91c1c;
+}
+
+.response {
+  margin-top: 20px;
+  padding: 12px 14px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+/* --- Logs panel -------------------------------------------------------------- */
+.logs {
+  margin-top: 40px;
+}
+
+.logs h2 {
+  font-size: 16px;
+  margin: 0 0 8px;
+}
+
+.logs-box {
+  max-height: 220px;
+  overflow: auto;
+  margin: 0;
+  padding: 12px;
+  background: #0f172a;
+  color: #cbd5e1;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

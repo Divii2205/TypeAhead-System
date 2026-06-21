@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Search Typeahead</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    <h1>Search Typeahead</h1>
+    <p class="subtitle">Start typing to see the most popular matching searches.</p>
+
+    <!-- Search box + the suggestions dropdown that hangs below it -->
+    <div class="search-area">
+      <div class="search-row">
+        <!-- autocomplete="off" stops the browser's own dropdown from covering ours -->
+        <input
+          id="search-input"
+          type="text"
+          placeholder="Search…"
+          autocomplete="off"
+          aria-label="Search"
+        />
+        <button id="search-button" type="button">Search</button>
+      </div>
+
+      <!-- Suggestions appear here. Hidden until there is something to show. -->
+      <ul id="suggestions" class="suggestions" hidden></ul>
+
+      <!-- Small status line for loading / error / "no results" messages -->
+      <div id="status" class="status" role="status"></div>
+    </div>
+
+    <!-- The dummy search response (filled in Step 3) -->
+    <div id="response" class="response" hidden></div>
+
+    <!-- Live server logs (proof of what the system is doing) -->
+    <section class="logs">
+      <h2>Server logs</h2>
+      <pre id="logs" class="logs-box">(waiting for activity…)</pre>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
