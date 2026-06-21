@@ -58,11 +58,27 @@ To stop the Redis nodes later: `docker compose down`.
 
 ## Dataset
 
-This project uses the open **English Word Frequency** dataset (`unigram_freq.csv`,
-~333,000 rows of `word,count`) — which matches the required `query,count` format and
-exceeds the 100,000-row minimum.
+This project uses the open **English Word Frequency** list — the Google Web Trillion
+Word Corpus, published by Peter Norvig. It contains **333,333 rows**, each a word and its
+real-world frequency (`word <TAB> count`). That already matches the required
+`query | count` format and far exceeds the 100,000-row minimum, so **no count derivation
+is needed** — we use the published frequency directly as the popularity count.
 
-_Exact download link and load command are filled in during Step 1._
+- **Source:** <https://norvig.com/ngrams/count_1w.txt> (free, no login)
+- Same data is also on Kaggle as *English Word Frequency* (`unigram_freq.csv`).
+
+Download it into the `data/` folder, then load it:
+
+```bash
+# download (no login required)
+curl -L -o data/count_1w.txt https://norvig.com/ngrams/count_1w.txt
+
+# load into SQLite (creates data/queries.db)
+npm run load
+```
+
+The loader (`data/load_data.js`) creates the `queries` table, then bulk-inserts all rows
+in a single transaction (~3–4 seconds).
 
 ---
 

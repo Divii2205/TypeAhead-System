@@ -6,7 +6,7 @@ data/queries.db
 data/queries.db-*
 
 # The downloaded raw dataset (too big for git; README explains how to fetch it)
-data/unigram_freq.csv
+data/count_1w.txt
 
 # Runtime logs
 logs/*.log

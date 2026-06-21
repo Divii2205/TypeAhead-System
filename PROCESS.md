@@ -58,3 +58,38 @@ Everything below builds these pieces one at a time.
   us run 3 copies with one command — a genuine distributed setup that's still easy to run.
 - *Logging from day one*: the assignment is graded partly on *showing* behaviour (cache
   hits, routing, batching). Logging early means we get that evidence for free.
+
+---
+
+## Step 1 — Load the dataset into SQLite
+
+**What we did**
+- Chose the **English Word Frequency** list (Google Web Trillion Word Corpus, from
+  norvig.com): 333,333 rows of `word <TAB> count`. We downloaded it to `data/count_1w.txt`.
+- Wrote `data/load_data.js`, which:
+  1. Creates the database file `data/queries.db`.
+  2. Creates one table, `queries(query, count, recent, updated_at)`.
+  3. Reads the whole file, splits each line into word + count, and inserts every row in
+     **one transaction**.
+- Ran it: 333,333 rows loaded in ~3.4 seconds.
+
+**Definitions**
+- **Primary data store** — the reliable "source of truth". Ours is SQLite (one file).
+- **Transaction** — a group of database writes that are committed together, all-or-nothing.
+  Doing all inserts in one transaction is dramatically faster than one-at-a-time (SQLite
+  saves to disk once at the end instead of 333,333 times).
+- **PRIMARY KEY / index** — making `query` the primary key means it's unique *and*
+  automatically indexed. That index is what lets us later find "all words starting with
+  `ip`" quickly instead of scanning every row.
+- **PRAGMA** — a SQLite setting. We used `journal_mode=WAL` and `synchronous=OFF` to speed
+  up the bulk load.
+
+**Why these choices**
+- *Why this dataset:* it already has a real `count` for every entry, so we don't have to
+  invent or derive popularity numbers. The data being single words is fine — the assignment
+  accepts "keywords", and the typeahead mechanics are identical whether entries are words
+  or phrases.
+- *Why a count column at all:* the basic 60% ranking is "sort suggestions by count", so we
+  need a popularity number per query. The published word frequency is exactly that.
+- *The `recent` column* starts at 0 and is used later (Step 5) for trending. We add it now
+  so we don't have to change the table shape later.
