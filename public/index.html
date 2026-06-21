@@ -7,48 +7,92 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <main class="app">
-    <h1>Search Typeahead</h1>
-    <p class="subtitle">Start typing to see the most popular matching searches.</p>
+  <div class="page">
 
-    <!-- Search box + the suggestions dropdown that hangs below it -->
-    <div class="search-area">
-      <div class="search-row">
-        <!-- autocomplete="off" stops the browser's own dropdown from covering ours -->
-        <input
-          id="search-input"
-          type="text"
-          placeholder="Search…"
-          autocomplete="off"
-          aria-label="Search"
-        />
-        <button id="search-button" type="button">Search</button>
+    <!-- ===== Header ===== -->
+    <header class="hero">
+      <h1>Search Typeahead</h1>
+      <div class="stack-pills" aria-label="Technology used">
+        <span class="pill">SQLite database</span>
+        <span class="pill">Redis cache ×3</span>
+        <span class="pill">Consistent hashing</span>
+        <span class="pill">Trending</span>
+        <span class="pill">Batch writes</span>
+      </div>
+    </header>
+
+    <!-- ===== Search card ===== -->
+    <section class="card">
+      <label class="field-label" for="search-input">Search box</label>
+      <p class="field-help">
+        Start typing (try <strong>“ip”</strong> or <strong>“java”</strong>). Suggestions appear
+        below, ranked by all-time popularity and recent activity. Use ↑ ↓ to highlight, Enter to
+        search, or click a suggestion.
+      </p>
+
+      <div class="search-area">
+        <div class="search-row">
+          <input
+            id="search-input"
+            type="text"
+            placeholder="Type to see suggestions…"
+            autocomplete="off"
+            aria-label="Search"
+          />
+          <button id="search-button" type="button">Search</button>
+        </div>
+
+        <!-- Suggestions dropdown -->
+        <ul id="suggestions" class="suggestions" hidden></ul>
+
+        <!-- Status line: loading / error / no-results -->
+        <div id="status" class="status" role="status"></div>
       </div>
 
-      <!-- Suggestions appear here. Hidden until there is something to show. -->
-      <ul id="suggestions" class="suggestions" hidden></ul>
+      <!-- Live "behind the scenes" indicator for the most recent lookup -->
+      <div id="lookup-info" class="lookup-info" hidden>
+        <span class="lookup-dot"></span>
+        <span id="lookup-text"></span>
+      </div>
 
-      <!-- Small status line for loading / error / "no results" messages -->
-      <div id="status" class="status" role="status"></div>
-    </div>
+      <!-- The dummy search response shown after you submit a search -->
+      <div id="response" class="response" hidden></div>
+    </section>
 
-    <!-- The dummy search response (filled in Step 3) -->
-    <div id="response" class="response" hidden></div>
-
-    <!-- Trending searches: queries with the most recent activity -->
-    <section class="trending">
-      <h2>Trending now</h2>
+    <!-- ===== Trending card ===== -->
+    <section class="card">
+      <h2 class="card-title">Trending now</h2>
+      <p class="field-help">
+        Searches that are getting popular <em>recently</em>. A query rises here when it's searched
+        a lot in a short time, and slowly fades as activity dies down. Click one to search it.
+      </p>
       <ol id="trending" class="trending-list">
-        <li class="trending-empty">No recent searches yet — try searching a few times.</li>
+        <li class="empty-row">No recent searches yet — search a few times to see this fill up.</li>
       </ol>
     </section>
 
-    <!-- Live server logs (proof of what the system is doing) -->
-    <section class="logs">
-      <h2>Server logs</h2>
+    <!-- ===== Activity log card ===== -->
+    <section class="card">
+      <h2 class="card-title">Server activity log</h2>
+      <p class="field-help">
+        A live view of what the server is doing. This is your proof that the system works — watch
+        cache hits/misses, which Redis node serves each prefix, and batch writes.
+      </p>
+      <ul class="legend">
+        <li><code>SUGGEST</code> a typeahead lookup (shows cache HIT/MISS, node, time)</li>
+        <li><code>SEARCH</code> a submitted search (buffered for batch write)</li>
+        <li><code>BATCH</code> buffered searches flushed to the database at once</li>
+        <li><code>CACHEDBG</code> a cache-routing debug check</li>
+        <li><code>DECAY</code> recent-activity scores fading over time</li>
+      </ul>
       <pre id="logs" class="logs-box">(waiting for activity…)</pre>
     </section>
-  </main>
+
+    <footer class="foot">
+      Full write-up in <code>README.md</code> · step-by-step reasoning in <code>PROCESS.md</code>
+    </footer>
+
+  </div>
 
   <script src="app.js"></script>
 </body>

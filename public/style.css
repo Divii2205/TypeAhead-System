@@ -1,90 +1,169 @@
-/* style.css — simple, clean styling for the typeahead UI. */
+/* style.css — modern, clean, simple styling for the typeahead UI. */
 
 :root {
-  --bg: #f5f6f8;
+  --bg-1: #eef2ff;
+  --bg-2: #f8fafc;
   --card: #ffffff;
-  --border: #d9dce1;
-  --text: #1c1e21;
-  --muted: #6b7280;
-  --accent: #2563eb;
-  --accent-soft: #e8f0fe;
+  --border: #e5e7eb;
+  --text: #0f172a;
+  --muted: #64748b;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-soft: #eef2ff;
+  --success: #059669;
+  --success-soft: #ecfdf5;
+  --warn: #b45309;
+  --warn-soft: #fffbeb;
+  --shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.06);
+  --radius: 14px;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-  background: var(--bg);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  color: var(--text);
+  background: linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 340px);
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+.page {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 40px 20px 64px;
+}
+
+/* ===== Header ===== */
+.hero {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.hero h1 {
+  margin: 0 0 8px;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.hero-sub {
+  margin: 0 auto;
+  max-width: 520px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.stack-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 18px;
+}
+
+.pill {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid #e0e7ff;
+  padding: 5px 11px;
+  border-radius: 999px;
+}
+
+/* ===== Cards ===== */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 22px;
+  margin-bottom: 20px;
+}
+
+.card-title {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.field-label {
+  display: block;
+  font-size: 15px;
+  font-weight: 650;
+  margin-bottom: 4px;
+}
+
+.field-help {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 13.5px;
+}
+
+.field-help strong {
   color: var(--text);
 }
 
-.app {
-  max-width: 640px;
-  margin: 48px auto;
-  padding: 0 16px;
-}
-
-h1 {
-  margin: 0 0 4px;
-  font-size: 28px;
-}
-
-.subtitle {
-  margin: 0 0 24px;
-  color: var(--muted);
-}
-
-/* --- Search box + dropdown --------------------------------------------------- */
+/* ===== Search box + dropdown ===== */
 .search-area {
-  position: relative; /* so the dropdown can sit right under the input */
+  position: relative;
 }
 
 .search-row {
   display: flex;
-  gap: 8px;
+  gap: 10px;
 }
 
 #search-input {
   flex: 1;
-  padding: 12px 14px;
+  padding: 13px 15px;
   font-size: 16px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
   outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 #search-input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
 #search-button {
-  padding: 0 18px;
+  padding: 0 22px;
   font-size: 15px;
+  font-weight: 600;
   color: #fff;
   background: var(--accent);
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
+  transition: background 0.15s;
 }
 
 #search-button:hover {
-  background: #1d4ed8;
+  background: var(--accent-hover);
 }
 
-/* The dropdown list of suggestions */
+/* Suggestions dropdown */
 .suggestions {
   list-style: none;
-  margin: 6px 0 0;
-  padding: 4px;
-  background: var(--card);
+  margin: 8px 0 0;
+  padding: 6px;
+  background: #fff;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
   position: absolute;
   left: 0;
   right: 0;
@@ -95,12 +174,12 @@ h1 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 9px 10px;
-  border-radius: 6px;
+  padding: 10px 12px;
+  border-radius: 8px;
   cursor: pointer;
+  transition: background 0.1s;
 }
 
-/* Highlight: applied both on mouse hover and on keyboard arrow navigation */
 .suggestions li:hover,
 .suggestions li.active {
   background: var(--accent-soft);
@@ -112,49 +191,89 @@ h1 {
 
 .suggestions .count {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12.5px;
   font-variant-numeric: tabular-nums;
+  background: #f1f5f9;
+  padding: 2px 8px;
+  border-radius: 999px;
 }
 
-/* --- Status + response ------------------------------------------------------- */
+/* ===== Status + lookup info + response ===== */
 .status {
-  min-height: 20px;
-  margin-top: 8px;
-  font-size: 14px;
+  min-height: 18px;
+  margin-top: 10px;
+  font-size: 13.5px;
   color: var(--muted);
 }
 
 .status.error {
-  color: #b91c1c;
+  color: #dc2626;
+}
+
+.lookup-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.lookup-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex: none;
+}
+
+.lookup-info.hit .lookup-dot {
+  background: var(--success);
+}
+.lookup-info.hit {
+  background: var(--success-soft);
+  border-color: #a7f3d0;
+  color: #047857;
+}
+
+.lookup-info.miss .lookup-dot {
+  background: var(--warn);
+}
+.lookup-info.miss {
+  background: var(--warn-soft);
+  border-color: #fde68a;
+  color: var(--warn);
+}
+
+.lookup-info code {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-size: 12px;
 }
 
 .response {
-  margin-top: 20px;
-  padding: 12px 14px;
-  background: #ecfdf5;
+  margin-top: 16px;
+  padding: 13px 15px;
+  background: var(--success-soft);
   border: 1px solid #a7f3d0;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 15px;
+  color: #065f46;
 }
 
-/* --- Trending panel ---------------------------------------------------------- */
-.trending {
-  margin-top: 32px;
-}
-
-.trending h2 {
-  font-size: 16px;
-  margin: 0 0 8px;
-}
-
+/* ===== Trending ===== */
 .trending-list {
   margin: 0;
   padding-left: 0;
   list-style: none;
   counter-reset: rank;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--card);
+  border-radius: 12px;
   overflow: hidden;
 }
 
@@ -163,10 +282,11 @@ h1 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 9px 12px 9px 36px;
+  padding: 11px 14px 11px 40px;
   position: relative;
   cursor: pointer;
   border-top: 1px solid var(--border);
+  transition: background 0.1s;
 }
 
 .trending-item:first-child {
@@ -176,42 +296,98 @@ h1 {
 .trending-item::before {
   content: counter(rank);
   position: absolute;
-  left: 12px;
-  color: var(--muted);
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
+  left: 14px;
+  width: 18px;
+  text-align: center;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
 }
 
 .trending-item:hover {
   background: var(--accent-soft);
 }
 
-.trending-empty {
-  padding: 12px;
+.trending-item .term {
+  font-weight: 500;
+}
+
+.trending-item .count {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
 }
 
-/* --- Logs panel -------------------------------------------------------------- */
-.logs {
-  margin-top: 40px;
+.empty-row {
+  padding: 14px;
+  color: var(--muted);
+  font-size: 13.5px;
 }
 
-.logs h2 {
-  font-size: 16px;
-  margin: 0 0 8px;
+/* ===== Activity log ===== */
+.legend {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 12.5px;
+  color: var(--muted);
+  display: grid;
+  gap: 5px;
+}
+
+.legend code {
+  display: inline-block;
+  min-width: 78px;
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .logs-box {
-  max-height: 220px;
+  max-height: 240px;
   overflow: auto;
   margin: 0;
-  padding: 12px;
-  background: #0f172a;
-  color: #cbd5e1;
-  border-radius: 8px;
+  padding: 14px;
+  background: #0b1220;
+  color: #94e2c4;
+  border-radius: 10px;
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+}
+
+/* ===== Footer ===== */
+.foot {
+  text-align: center;
+  color: var(--muted);
+  font-size: 12.5px;
+  margin-top: 8px;
+}
+
+.foot code {
+  color: var(--text);
+  background: #fff;
+  border: 1px solid var(--border);
+  padding: 1px 6px;
+  border-radius: 5px;
+}
+
+/* ===== Small screens ===== */
+@media (max-width: 520px) {
+  .hero h1 {
+    font-size: 26px;
+  }
+  .search-row {
+    flex-direction: column;
+  }
+  #search-button {
+    padding: 12px;
+  }
 }

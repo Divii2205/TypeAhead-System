@@ -174,17 +174,44 @@ async function debug(prefix) {
 }
 
 /**
- * Ping every node once at startup so we can report which caches are reachable.
+ * Wait until a client is connected ("ready"), or give up after `ms`.
+ * Needed at startup because connecting is async — pinging too early would
+ * wrongly report a healthy node as down.
+ */
+function waitReady(client, ms = 2000) {
+  if (client.status === 'ready') return Promise.resolve(true);
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (val) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      client.off('ready', onReady);
+      resolve(val);
+    };
+    const onReady = () => finish(true);
+    const timer = setTimeout(() => finish(false), ms);
+    client.once('ready', onReady);
+  });
+}
+
+/**
+ * Ping every node at startup so we can report which caches are reachable.
+ * Waits for each connection to be ready first to avoid false "down" reports.
  */
 async function pingAll() {
   const results = [];
   for (const node of nodes) {
-    try {
-      await node.client.ping();
-      results.push({ node: node.name, up: true });
-    } catch {
-      results.push({ node: node.name, up: false });
+    let up = false;
+    if (await waitReady(node.client)) {
+      try {
+        await node.client.ping();
+        up = true;
+      } catch {
+        up = false;
+      }
     }
+    results.push({ node: node.name, up });
   }
   return results;
 }

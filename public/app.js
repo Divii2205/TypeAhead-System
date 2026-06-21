@@ -17,6 +17,8 @@ const statusEl = document.getElementById('status');
 const logsEl = document.getElementById('logs');
 const responseEl = document.getElementById('response');
 const trendingEl = document.getElementById('trending');
+const lookupInfo = document.getElementById('lookup-info');
+const lookupText = document.getElementById('lookup-text');
 
 // The suggestions currently shown, and which one is highlighted (-1 = none).
 let current = [];
@@ -42,6 +44,7 @@ async function fetchSuggestions(q) {
   if (!q.trim()) {
     hideSuggestions();
     setStatus('');
+    lookupInfo.hidden = true;
     return;
   }
 
@@ -49,19 +52,38 @@ async function fetchSuggestions(q) {
   setStatus('Searching…');
 
   try {
+    const t0 = performance.now();
     const res = await fetch('/suggest?q=' + encodeURIComponent(q));
     if (!res.ok) throw new Error('Server returned ' + res.status);
     const data = await res.json();
+    const ms = performance.now() - t0;
 
     // If a newer keystroke already fired, ignore this (stale) response.
     if (myRequest !== latestRequest) return;
 
     render(data.suggestions);
+    showLookup(data, ms);
   } catch (err) {
     if (myRequest !== latestRequest) return;
     hideSuggestions();
+    lookupInfo.hidden = true;
     setStatus('Something went wrong: ' + err.message, true);
   }
+}
+
+// Show a friendly "what just happened" line so you can SEE the cache working.
+function showLookup(data, ms) {
+  if (!data || !data.node || data.cache === 'SKIP') {
+    lookupInfo.hidden = true;
+    return;
+  }
+  const hit = data.cache === 'HIT';
+  lookupInfo.hidden = false;
+  lookupInfo.classList.toggle('hit', hit);
+  lookupInfo.classList.toggle('miss', !hit);
+  lookupText.innerHTML = hit
+    ? `Cache <strong>HIT</strong> — answered from Redis node <code>${data.node}</code> in ${ms.toFixed(0)} ms (no database needed)`
+    : `Cache <strong>MISS</strong> — read from the database, then cached on Redis node <code>${data.node}</code> (${ms.toFixed(0)} ms)`;
 }
 
 // Run fetchSuggestions at most once per ~200ms of typing.
