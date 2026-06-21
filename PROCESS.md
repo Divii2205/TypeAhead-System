@@ -160,3 +160,48 @@ Everything below builds these pieces one at a time.
   **batch writer** so we don't hit the database on every single request.
 - *Selecting a suggestion searches it:* matches how real search boxes behave (click a
   suggestion → it searches), and satisfies the "search on Enter or button click" requirement.
+
+---
+
+## Step 4 — Distributed cache + consistent hashing
+
+**What we did**
+- `server/cache.js`: connects to all **3 Redis nodes** (one client each) and builds a
+  **consistent-hashing ring** to decide which node owns each prefix.
+- Wired the **cache-aside** flow into `GET /suggest`: check the owning Redis node first; on a
+  **miss**, read SQLite and store the result back in that node with a 60-second **TTL**.
+- Added `GET /cache/debug?prefix=` → reports the owning node + hit/miss.
+- Made the cache **safe**: if a Redis node is down, reads/writes silently fall back to SQLite,
+  so suggestions never break.
+- **Proved it works:** routed 14 prefixes and then listed the keys actually stored on each
+  Redis container — the physical placement matched the ring's predictions exactly (e.g. `ip`,
+  `book`, `java`, `pizza` all on `redis-2`). First `/suggest` is a MISS, the second is a HIT.
+
+**Definitions**
+- **Cache** — a small, fast store of recent answers so we don't redo expensive work.
+- **Cache-aside** — the app checks the cache first and, on a miss, loads from the database and
+  *then* fills the cache. (The cache sits "aside" the database.)
+- **TTL (time to live)** — how long a cached entry survives before it auto-expires. Ours is
+  60s, set with Redis `SET key value EX 60`.
+- **Distributed cache** — the cache is split across several servers (our 3 Redis nodes), not
+  one, so it can hold more and survive a single node failing.
+- **Consistent hashing** — a rule for "which node owns this key" using a hash *ring*. Adding or
+  removing a node only moves the keys in one arc, instead of reshuffling everything (which is
+  what `hash % N` would do).
+- **Virtual nodes** — placing each real node at many points (150) on the ring so keys spread
+  evenly instead of one node accidentally owning a huge slice.
+- **Hit / miss** — a *hit* means the answer was already in the cache; a *miss* means we had to
+  go to the database.
+
+**Why these choices**
+- *Real Redis (not an in-memory map):* the assignment specifically wants a *distributed* cache;
+  3 real Redis nodes make the routing genuinely meaningful, and `redis-cli` lets us *prove* a
+  key lives on the predicted node.
+- *Consistent hashing instead of `% 3`:* `% 3` would scatter almost every key to a new node the
+  moment we add/remove a server, wiping the cache. Consistent hashing moves only a small slice.
+  **This router is our own code — it's the core thing to explain in the viva; Redis is just
+  storage behind it.**
+- *Cache key = the prefix's result:* we cache the finished top-10 list, because *computing* it
+  (scanning + sorting) is the expensive part; caching the answer skips all of it.
+- *Graceful fallback:* treating a dead node as a miss means a Redis outage degrades performance
+  but never breaks the feature.

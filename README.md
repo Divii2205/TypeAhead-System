@@ -125,6 +125,24 @@ curl -X POST http://localhost:3000/search \
 
 This records the query (new query → count 1; existing query → count + 1).
 
+**Example — `GET /cache/debug`:**
+
+```bash
+curl "http://localhost:3000/cache/debug?prefix=ip"
+```
+```json
+{ "prefix": "ip", "key": "sugg:ip", "node": "redis-2", "hit": true }
+```
+
+`node` is the Redis node our consistent-hashing ring assigns to that prefix; `hit` says
+whether a value is currently cached there. You can confirm the placement directly:
+
+```bash
+docker exec typeahead-redis-2 redis-cli keys 'sugg:*'
+```
+
+`/suggest` responses also include `"cache": "HIT"|"MISS"` and the owning `"node"`.
+
 _More endpoint examples are added as each is built._
 
 ---

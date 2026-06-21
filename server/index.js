@@ -15,6 +15,7 @@ const path = require('path');
 const express = require('express');
 
 const { getSuggestions, recordSearch } = require('./db');
+const cache = require('./cache');
 const { log, getRecent } = require('./logger');
 
 const app = express();
@@ -28,20 +29,56 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // --- GET /suggest?q=<prefix> --------------------------------------------------
-// Returns JSON: { q, count, suggestions: [{query, count}, ...] }
-app.get('/suggest', (req, res) => {
+// THE CACHE-ASIDE FLOW:
+//   1. Look in the cache (the Redis node that owns this prefix).
+//   2. HIT  -> return it immediately (fast).
+//   3. MISS -> read SQLite, then store the result in that cache node (with a TTL).
+// Returns JSON: { q, count, suggestions, cache: "HIT"|"MISS", node }
+app.get('/suggest', async (req, res) => {
   const startedAt = Date.now();
 
-  // The typed prefix arrives as the query-string parameter ?q=...
-  const q = req.query.q || '';
+  // Normalise the prefix once so the cache key and DB query agree.
+  const q = (req.query.q || '').trim().toLowerCase();
 
-  const suggestions = getSuggestions(q);
+  // Empty input: nothing to do, don't touch cache or DB.
+  if (!q) {
+    log('SUGGEST', { q: '', results: 0, cache: 'SKIP', ms: 0 });
+    return res.json({ q: '', count: 0, suggestions: [], cache: 'SKIP', node: null });
+  }
+
+  // Which Redis node owns this prefix (consistent hashing).
+  const node = cache.getNode(cache.cacheKey(q)).name;
+
+  // 1) Try the cache.
+  let suggestions = await cache.getCached(q);
+  let hit = suggestions !== null;
+
+  // 2) On a miss, fall back to the database and populate the cache.
+  if (!hit) {
+    suggestions = getSuggestions(q);
+    await cache.setCached(q, suggestions);
+  }
+
   const ms = Date.now() - startedAt;
+  log('SUGGEST', { q, node, cache: hit ? 'HIT' : 'MISS', results: suggestions.length, ms });
 
-  // Record what happened (handy evidence + shows up in the UI logs panel).
-  log('SUGGEST', { q, results: suggestions.length, ms });
+  res.json({
+    q,
+    count: suggestions.length,
+    suggestions,
+    cache: hit ? 'HIT' : 'MISS',
+    node,
+  });
+});
 
-  res.json({ q, count: suggestions.length, suggestions });
+// --- GET /cache/debug?prefix=<prefix> -----------------------------------------
+// Shows which cache node is responsible for a prefix and whether it's a hit/miss.
+// This is the assignment's required proof that consistent hashing is working.
+app.get('/cache/debug', async (req, res) => {
+  const prefix = (req.query.prefix || '').trim().toLowerCase();
+  const info = await cache.debug(prefix); // { prefix, key, node, hit }
+  log('CACHEDBG', { prefix, node: info.node, hit: info.hit });
+  res.json(info);
 });
 
 // --- POST /search -------------------------------------------------------------
@@ -65,7 +102,19 @@ app.get('/logs', (req, res) => {
 });
 
 // --- Start the server ---------------------------------------------------------
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   log('SERVER', { msg: 'started', url: `http://localhost:${PORT}` });
   console.log(`Open http://localhost:${PORT}`);
+
+  // Report which cache nodes are reachable (so you know Redis/Docker is up).
+  const pings = await cache.pingAll();
+  const up = pings.filter((p) => p.up).map((p) => p.node);
+  const down = pings.filter((p) => !p.up).map((p) => p.node);
+  log('CACHE', { up: up.join(',') || 'none', down: down.join(',') || 'none' });
+  if (down.length) {
+    console.log(
+      `WARNING: cache nodes down: ${down.join(', ')}. ` +
+        `Suggestions still work (served from SQLite). Start Redis with: docker compose up -d`
+    );
+  }
 });
