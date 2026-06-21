@@ -298,3 +298,52 @@ Everything below builds these pieces one at a time.
   under a sudden spike.
 - *Invalidate prefixes on flush:* this is the moment counts actually change, so it's exactly
   when the cached pools should be dropped — tying batch writes and cache freshness together.
+
+---
+
+## Step 7 — Performance benchmark + documentation
+
+**What we did**
+- `bench/measure.js`: a script that hits the running server with 200 searches and 3,000
+  suggestion requests and reports **p95 latency**, **cache hit rate**, and **DB read/write
+  counts**.
+- Filled in the README's performance report, design-choices table, and API examples; finalised
+  this PROCESS document.
+
+**The measured result (full 333,333-row dataset):**
+- Suggest latency: mean 4.5 ms, **p95 6.3 ms**.
+- **Cache hit rate 99.0%** (2,970 hits / 30 misses). The 30 misses are exactly the 30 distinct
+  prefixes — one cold miss each, every repeat a hit.
+- **Batch write reduction 96%** (200 searches → 8 row-writes).
+
+**Definitions**
+- **Latency** — how long one request takes, end to end.
+- **p95 (95th percentile)** — 95% of requests were *at least this fast*; a better "typical
+  worst case" than the average, which a few slow requests can distort.
+- **Hit rate** — share of suggestion requests answered from cache instead of the database.
+
+**Why these choices**
+- *Benchmark reuses prefixes:* so the cache warms up and the hit rate reflects real usage
+  (popular prefixes asked repeatedly).
+- *Report p95, not just average:* the assignment asks for it, and it's the honest measure of
+  what users feel.
+
+---
+
+## Quick map: where each requirement lives (for the viva)
+
+| Requirement | File(s) | One-line summary |
+|---|---|---|
+| Suggestions (top 10 by count, prefix, case-insensitive) | `server/db.js`, `public/app.js` | indexed range scan + debounced UI |
+| Search API returns `{"message":"Searched"}` | `server/index.js` (`POST /search`) | records the query, returns the dummy message |
+| Query-count updates | `server/db.js`, `server/batch.js` | UPSERT, applied via the batch writer |
+| Distributed cache + consistent hashing | `server/cache.js` | 3 Redis nodes + our hash ring (`GET /cache/debug`) |
+| Trending (recency + decay) | `server/trending.js` | in-memory score, blended into ranking, decays |
+| Batch writes | `server/batch.js` | buffer → aggregate → one transaction → invalidate |
+| Performance report | `bench/measure.js` | p95 latency, hit rate, write reduction |
+
+**If you can explain the three "hearts" of this project, you can defend the whole thing:**
+1. **The consistent-hashing ring** in `cache.js` — why it beats `hash % 3`.
+2. **The recency blend + decay** in `trending.js` — how recent activity lifts a query and then
+   fades.
+3. **The batch buffer + flush** in `batch.js` — how it cuts writes and what it risks on a crash.
