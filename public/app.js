@@ -282,3 +282,7 @@ refreshLogs();
 // Refresh trending periodically too (so decay is visible over time).
 setInterval(refreshTrending, 3000);
 refreshTrending();
+
+// On page load, flush any searches buffered before the reload. This is one of the
+// batch-write triggers ("flush on reload, or after a timeout, whichever first").
+fetch('/flush', { method: 'POST' }).catch(() => {});

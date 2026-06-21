@@ -118,6 +118,15 @@ app.get('/stats', (req, res) => {
   res.json(batch.getStats());
 });
 
+// --- POST /flush --------------------------------------------------------------
+// Force the batch buffer to flush now. The web page calls this on load, so
+// reloading the page writes any pending searches to the database (and invalidates
+// the affected caches). Returns the latest stats.
+app.post('/flush', async (req, res) => {
+  await batch.flush('reload');
+  res.json(batch.getStats());
+});
+
 // --- GET /logs?n=<number> -----------------------------------------------------
 // The UI polls this to show a live "what the server is doing" panel.
 app.get('/logs', (req, res) => {

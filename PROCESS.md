@@ -260,9 +260,10 @@ Everything below builds these pieces one at a time.
 
 **What we did**
 - `server/batch.js`: `POST /search` now drops the query into an in-memory **buffer**
-  (`Map<query, count>`, so repeats aggregate automatically). A flusher runs **every 3s** *or*
-  when 50 distinct queries pile up; it writes the aggregated counts to SQLite in **one
-  transaction**, then **invalidates** the cache for every affected prefix.
+  (`Map<query, count>`, so repeats aggregate automatically). The buffer flushes when the
+  **earliest** of three things happens: the **page is reloaded** (`POST /flush`), a **30s
+  timeout** elapses, or **200 distinct queries** pile up. A flush writes the aggregated counts
+  to SQLite in **one transaction**, then **invalidates** the cache for every affected prefix.
 - `server/db.js`: added `applyBatch(items)` — one transaction that adds each query's aggregated
   amount.
 - `server/index.js`: `/search` enqueues instead of writing; added `GET /stats` (the
@@ -283,10 +284,10 @@ Everything below builds these pieces one at a time.
 - If the process **crashes** between flushes, the buffered (not-yet-written) searches are
   **lost**, so a few counts under-count slightly. We accept this for the assignment: counts are
   popularity hints, not money, and a small loss doesn't hurt suggestions.
-- We reduce the window two ways: a short 3s interval, and a **graceful shutdown** that flushes
-  on Ctrl+C. For real durability you'd write to an append-only log first (write-ahead log) and
-  replay it on restart — noted as a future improvement, intentionally left out to keep this
-  simple.
+- We reduce the window three ways: a flush on **page reload**, a **30s timeout**, and a
+  **graceful shutdown** that flushes on Ctrl+C. For real durability you'd write to an
+  append-only log first (write-ahead log) and replay it on restart — noted as a future
+  improvement, intentionally left out to keep this simple.
 - **Latency vs freshness vs safety:** buffering makes `/search` instant (no disk wait) and slows
   write pressure, at the cost of suggestions lagging reality by up to one flush interval. Cache
   invalidation on flush keeps the lag bounded and predictable.
@@ -294,8 +295,10 @@ Everything below builds these pieces one at a time.
 **Why these choices**
 - *Map buffer:* aggregates repeats for free and bounds memory to "distinct queries since last
   flush".
-- *Flush by time **and** size:* time keeps data fresh under light load; size protects memory
-  under a sudden spike.
+- *Flush on reload **and** by time **and** size:* reload is a natural checkpoint (you see fresh
+  data after refreshing); the 30s timeout keeps data fresh under light load; the size cap
+  protects memory under a sudden spike. A longer timeout also means cached suggestion pools live
+  longer between flushes, which makes cache HITs easy to see in a live demo.
 - *Invalidate prefixes on flush:* this is the moment counts actually change, so it's exactly
   when the cached pools should be dropped — tying batch writes and cache freshness together.
 

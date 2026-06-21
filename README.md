@@ -21,9 +21,9 @@ ranking and **batch writes** to reduce database load.
  │ trending panel   │                │                       │          └───────────┘
  │ logs panel       │  POST /search  │  search route         │  miss    ┌───────────┐
  └──────────────────┘ ─────────────► │  → batch buffer       │ ───────► │ SQLite    │
-                                      │  → trending tracker   │          │ (queries) │
-                                      └───────────────────────┘          └───────────┘
-                                          ▲ batch flusher writes counts in bulk
+                                     │  → trending tracker   │          │ (queries) │
+                                     └───────────────────────┘          └───────────┘
+                                      ▲ batch flusher writes counts in bulk
 ```
 
 - **SQLite** is the *primary data store* (the source of truth for query counts).
@@ -122,6 +122,7 @@ in a single transaction (~3–4 seconds).
 | GET | `/cache/debug?prefix=<prefix>` | Shows which Redis node owns the prefix + hit/miss |
 | GET | `/trending` | Top queries by recent activity |
 | GET | `/stats` | Batch-write evidence: searches received vs DB rows written |
+| POST | `/flush` | Force the batch buffer to flush now (the page calls this on reload) |
 | GET | `/logs?n=50` | Most recent log lines (also shown in the UI) |
 
 **Example — `GET /suggest`:**
@@ -213,8 +214,10 @@ curl "http://localhost:3000/stats"
 ```
 
 60 searches became only 4 database row-writes — a **93% write reduction**. Searches are
-buffered in memory, aggregated, and flushed in one transaction every 3s (or sooner if 50
-distinct queries pile up); each flush also invalidates the affected prefix caches.
+buffered in memory and aggregated; the buffer is flushed in one transaction when the
+**earliest** of these happens: the **page is reloaded** (`POST /flush`), a **30-second
+timeout** elapses, or the buffer reaches **200 distinct queries**. Each flush also
+invalidates the affected prefix caches so suggestions stay fresh.
 
 ---
 

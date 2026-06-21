@@ -55,8 +55,8 @@ async function main() {
       body: JSON.stringify({ query: q }),
     });
   }
-  // Give the batch flusher a moment to write everything out.
-  await new Promise((r) => setTimeout(r, 3500));
+  // Force a flush so all buffered searches are written before we read stats.
+  await fetch(`${BASE}/flush`, { method: 'POST' });
 
   // --- Phase B: suggestions (measure latency + hit rate) ----------------------
   console.log(`Phase B: sending ${SUGGESTS} suggestion requests...`);

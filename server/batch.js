@@ -21,8 +21,14 @@ const cache = require('./cache');
 const { log } = require('./logger');
 
 // --- Tunable settings ---------------------------------------------------------
-const FLUSH_INTERVAL_MS = 3000; // flush at least this often
-const MAX_BATCH = 50; // ...or sooner if the buffer reaches this many distinct queries
+// We flush when the EARLIEST of these happens:
+//   1. the page is reloaded (the browser calls POST /flush on load), or
+//   2. this timeout elapses, or
+//   3. the buffer fills up (safety net so memory can't grow unbounded).
+// A longer timeout means cached suggestion pools survive longer between flushes,
+// which makes cache HITs easy to demonstrate (a flush invalidates changed prefixes).
+const FLUSH_INTERVAL_MS = 30000; // 30s timeout fallback
+const MAX_BATCH = 200; // ...or sooner if this many distinct queries pile up
 
 // The buffer: query -> how many times it was searched since the last flush.
 const buffer = new Map();
