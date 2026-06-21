@@ -25,13 +25,32 @@ const crypto = require('crypto');
 const Redis = require('ioredis');
 const { log } = require('./logger');
 
-// --- The three cache nodes (our 3 Docker Redis containers) --------------------
-// Each is a separate Redis on its own port. We create one client per node.
-const NODE_DEFS = [
-  { name: 'redis-0', host: '127.0.0.1', port: 6379 },
-  { name: 'redis-1', host: '127.0.0.1', port: 6380 },
-  { name: 'redis-2', host: '127.0.0.1', port: 6381 },
-];
+// --- The three cache nodes (our 3 Redis containers) ---------------------------
+// Each is a separate Redis. We create one client per node.
+//
+// WHERE the nodes live depends on how you run the app:
+//   - Running the app on your machine (npm start): Redis is reached on localhost
+//     at ports 6379/6380/6381 (the host ports docker-compose maps).
+//   - Running the app INSIDE docker-compose: containers talk over the compose
+//     network using service names (redis-0/redis-1/redis-2), all on port 6379.
+// So we read an optional REDIS_NODES env var ("host:port,host:port,host:port");
+// docker-compose sets it. With no env var we fall back to the localhost defaults.
+function parseNodeDefs() {
+  const env = process.env.REDIS_NODES;
+  if (env) {
+    return env.split(',').map((pair, i) => {
+      const [host, port] = pair.trim().split(':');
+      return { name: `redis-${i}`, host, port: parseInt(port, 10) || 6379 };
+    });
+  }
+  return [
+    { name: 'redis-0', host: '127.0.0.1', port: 6379 },
+    { name: 'redis-1', host: '127.0.0.1', port: 6380 },
+    { name: 'redis-2', host: '127.0.0.1', port: 6381 },
+  ];
+}
+
+const NODE_DEFS = parseNodeDefs();
 
 // Connection options chosen so a DOWN node fails FAST instead of hanging the
 // suggestion request. If a node is unreachable we just treat it as a cache miss

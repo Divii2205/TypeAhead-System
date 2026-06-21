@@ -11,6 +11,24 @@ ranking and **batch writes** to reduce database load.
 
 ---
 
+## ⚡ Quick start (for graders)
+
+The only requirement is **Docker Desktop** (running). Then, from the project folder:
+
+```bash
+docker compose up --build
+```
+
+That one command builds the app, **downloads the dataset, builds the database, and
+starts the app plus all 3 Redis cache nodes**. When you see `started url=...`, open:
+
+**<http://localhost:3000>**
+
+Stop everything with `Ctrl+C` (or `docker compose down`). No Node.js install, no manual
+dataset download, no extra steps. (First build takes ~1–2 minutes.)
+
+---
+
 ## Architecture (one-minute version)
 
 ```
@@ -34,23 +52,40 @@ ranking and **batch writes** to reduce database load.
 
 ## How to run it
 
-You need **Node.js** and **Docker Desktop** installed.
+You need **Docker Desktop** installed (Node.js too, only for Option B).
+
+### Option A — one command (everything in Docker) ✅ easiest
+
+This builds the app image (which downloads the dataset and builds the database
+inside the image) and starts the app **plus** the 3 Redis cache nodes together:
 
 ```bash
-# 1. Start the 3 Redis cache nodes (in the background)
-docker compose up -d
-
-# 2. Install Node dependencies
-npm install
-
-# 3. Load the dataset into SQLite (see "Dataset" below first)
-npm run load
-
-# 4. Start the server
-npm start
+docker compose up --build
 ```
 
-Then open <http://localhost:3000>.
+Then open <http://localhost:3000>. Stop it with `Ctrl+C`, or `docker compose down`.
+
+> The app talks to Redis over the Compose network using the service names
+> `redis-0/redis-1/redis-2`; locally it uses `localhost`. This is controlled by the
+> `REDIS_NODES` environment variable (set for you in `docker-compose.yml`).
+
+### Option B — local dev (edit & re-run the app without rebuilding)
+
+Run only Redis in Docker and the app on your machine:
+
+```bash
+# 1. Start just the 3 Redis cache nodes
+docker compose up -d redis-0 redis-1 redis-2
+
+# 2. Install dependencies
+npm install
+
+# 3. Download + load the dataset into SQLite (see "Dataset" below)
+npm run load
+
+# 4. Start the server, then open http://localhost:3000
+npm start
+```
 
 To measure performance (with the server running, in another terminal):
 
@@ -58,7 +93,19 @@ To measure performance (with the server running, in another terminal):
 npm run bench
 ```
 
-To stop the Redis nodes later: `docker compose down`.
+### Sharing the image
+
+The app image is self-contained, so you can publish it for others to pull:
+
+```bash
+docker compose build app
+docker tag typeaheadsystem-app <your-dockerhub-user>/typeahead-app:latest
+docker push <your-dockerhub-user>/typeahead-app:latest
+```
+
+> Note: Redis is **not** inside the app image — it runs as separate official
+> `redis:7-alpine` containers (one process per container is best practice). The
+> consistent-hashing router that decides which node owns each key is **our** code.
 
 ---
 
