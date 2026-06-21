@@ -15,6 +15,7 @@ const button = document.getElementById('search-button');
 const list = document.getElementById('suggestions');
 const statusEl = document.getElementById('status');
 const logsEl = document.getElementById('logs');
+const responseEl = document.getElementById('response');
 
 // The suggestions currently shown, and which one is highlighted (-1 = none).
 let current = [];
@@ -122,12 +123,40 @@ function updateActive() {
   });
 }
 
-// Pick a suggestion: put it in the box and close the dropdown.
+// Pick a suggestion: put it in the box, close the dropdown, and search it.
 function choose(i) {
   if (i < 0 || i >= current.length) return;
   input.value = current[i].query;
   hideSuggestions();
-  input.focus();
+  submitSearch();
+}
+
+// --- Submit a search (POST /search) ------------------------------------------
+async function submitSearch() {
+  const q = input.value.trim();
+  if (!q) return;
+
+  hideSuggestions();
+
+  try {
+    const res = await fetch('/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: q }),
+    });
+    const data = await res.json();
+    // Show the dummy response the backend returns.
+    showResponse(`${data.message} — "${q}"`);
+  } catch (err) {
+    showResponse('Search failed: ' + err.message, true);
+  }
+}
+
+function showResponse(text, isError = false) {
+  responseEl.textContent = text;
+  responseEl.hidden = false;
+  responseEl.style.background = isError ? '#fef2f2' : '#ecfdf5';
+  responseEl.style.borderColor = isError ? '#fecaca' : '#a7f3d0';
 }
 
 // --- Events -------------------------------------------------------------------
@@ -146,10 +175,12 @@ input.addEventListener('keydown', (e) => {
     activeIndex = Math.max(activeIndex - 1, 0);
     updateActive();
   } else if (e.key === 'Enter') {
-    // If a suggestion is highlighted, pick it. (Submitting comes in Step 3.)
+    e.preventDefault();
+    // If a suggestion is highlighted, pick + search it; otherwise search what's typed.
     if (activeIndex >= 0) {
-      e.preventDefault();
       choose(activeIndex);
+    } else {
+      submitSearch();
     }
   } else if (e.key === 'Escape') {
     hideSuggestions();
@@ -161,8 +192,8 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('.search-area')) hideSuggestions();
 });
 
-// The search button doesn't submit yet — wired up in Step 3.
-button.addEventListener('click', () => input.focus());
+// The search button submits whatever is in the box.
+button.addEventListener('click', () => submitSearch());
 
 // --- Live logs panel ----------------------------------------------------------
 async function refreshLogs() {

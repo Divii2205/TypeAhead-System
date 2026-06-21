@@ -129,3 +129,34 @@ Everything below builds these pieces one at a time.
 - *Debounce on the front-end:* directly satisfies "the UI should avoid unnecessary backend
   calls".
 - *Logs panel from the start:* makes the system's behaviour visible for the demo/screenshots.
+
+---
+
+## Step 3 — Search submission + query-count updates
+
+**What we did**
+- `server/db.js`: added `recordSearch(query)` — an **UPSERT** that inserts a new query with
+  count 1, or, if it already exists, adds 1 to its count.
+- `server/index.js`: added `POST /search`, which records the query and returns the required
+  dummy response `{"message":"Searched"}`.
+- `public/app.js`: wired the **Search button**, the **Enter key**, and **clicking/selecting a
+  suggestion** to submit the search and show the response on the page.
+- Tested it: searching a brand-new word created it (count 1), searching again bumped it to 2,
+  and an empty submission still returns `Searched` but records nothing.
+
+**Definitions**
+- **UPSERT** — "update or insert": one SQL statement that inserts a row, or updates it if it
+  already exists. We use SQLite's `INSERT ... ON CONFLICT(query) DO UPDATE`.
+- **POST** — the HTTP method used to send data *to* the server (here, the query being
+  searched), as opposed to GET which just *fetches* data.
+- **Request body** — the JSON payload sent with a POST, e.g. `{ "query": "iphone" }`.
+
+**Why these choices**
+- *Increment by 1 per search:* simple and honest. Because the dataset's real counts are huge
+  (billions), one search barely moves the all-time ranking — which is exactly *why* the
+  assignment also wants **trending/recency** (Step 5): recent activity is what should visibly
+  re-order suggestions in a demo, not the slow-moving all-time count.
+- *Direct DB write for now:* easiest correct version. In **Step 6** we replace this with a
+  **batch writer** so we don't hit the database on every single request.
+- *Selecting a suggestion searches it:* matches how real search boxes behave (click a
+  suggestion → it searches), and satisfies the "search on Enter or button click" requirement.

@@ -39,6 +39,39 @@ const suggestStmt = db.prepare(`
   LIMIT ${LIMIT}
 `);
 
+// --- Recording a submitted search --------------------------------------------
+//
+// This is an "UPSERT": INSERT a new row, or, if the query already exists, UPDATE it.
+//   - brand-new query  -> inserted with count = 1 (its "initial count")
+//   - existing query   -> its count goes up by 1
+// `excluded` refers to the row we tried to insert, so excluded.updated_at is @now.
+const recordStmt = db.prepare(`
+  INSERT INTO queries (query, count, updated_at)
+  VALUES (@query, 1, @now)
+  ON CONFLICT(query) DO UPDATE SET
+    count = count + 1,
+    updated_at = excluded.updated_at
+`);
+
+/**
+ * Record that a query was searched (its count goes up by 1, or it's created).
+ * Returns the cleaned query string, or null if the input was empty/invalid.
+ *
+ * NOTE: in Step 3 we call this directly on every search. In Step 6 the batch
+ * writer takes over so we don't hit the database on every single request.
+ *
+ * @param {string} rawQuery
+ * @returns {string|null}
+ */
+function recordSearch(rawQuery) {
+  if (typeof rawQuery !== 'string') return null;
+  const query = rawQuery.trim().toLowerCase();
+  if (query.length === 0) return null;
+
+  recordStmt.run({ query, now: Date.now() });
+  return query;
+}
+
 /**
  * Build the exclusive upper bound for a prefix.
  * e.g. "ip" -> "iq", so the range [ "ip", "iq" ) covers ip, ipad, iphone, ...
@@ -70,4 +103,4 @@ function getSuggestions(rawPrefix) {
   return rows; // already [{query, count}, ...]; empty array if nothing matched
 }
 
-module.exports = { db, getSuggestions };
+module.exports = { db, getSuggestions, recordSearch };

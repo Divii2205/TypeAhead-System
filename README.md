@@ -112,6 +112,19 @@ curl "http://localhost:3000/suggest?q=ip"
 Input is case-insensitive (`IP` == `ip`); empty, missing, or no-match input returns
 `{"count": 0, "suggestions": []}` instead of an error.
 
+**Example — `POST /search`:**
+
+```bash
+curl -X POST http://localhost:3000/search \
+  -H "Content-Type: application/json" \
+  -d '{"query":"iphone"}'
+```
+```json
+{ "message": "Searched" }
+```
+
+This records the query (new query → count 1; existing query → count + 1).
+
 _More endpoint examples are added as each is built._
 
 ---

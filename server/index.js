@@ -14,7 +14,7 @@
 const path = require('path');
 const express = require('express');
 
-const { getSuggestions } = require('./db');
+const { getSuggestions, recordSearch } = require('./db');
 const { log, getRecent } = require('./logger');
 
 const app = express();
@@ -42,6 +42,19 @@ app.get('/suggest', (req, res) => {
   log('SUGGEST', { q, results: suggestions.length, ms });
 
   res.json({ q, count: suggestions.length, suggestions });
+});
+
+// --- POST /search -------------------------------------------------------------
+// The "dummy search API". The user submits a query; we record it (count +1) and
+// reply with the required dummy message. The body is JSON: { "query": "iphone" }.
+app.post('/search', (req, res) => {
+  const query = (req.body && (req.body.query || req.body.q)) || '';
+
+  const recorded = recordSearch(query);
+  log('SEARCH', { query: recorded || '(empty)', recorded: recorded !== null });
+
+  // The assignment asks specifically for this response shape.
+  res.json({ message: 'Searched' });
 });
 
 // --- GET /logs?n=<number> -----------------------------------------------------
