@@ -1,0 +1,29 @@
+# This file describes our "distributed cache": 3 separate Redis servers.
+#
+# Why 3? So we can demonstrate a *distributed* cache. Our own code (server/cache.js)
+# uses consistent hashing to decide which of these 3 nodes owns each search prefix.
+#
+# Each Redis runs in its own container and is exposed on a different port on your
+# machine, so our app can talk to them as redis-0, redis-1, redis-2.
+#
+# Start them all with:   docker compose up -d
+# Stop them with:        docker compose down
+
+services:
+  redis-0:
+    image: redis:7-alpine          # small, official Redis image
+    container_name: typeahead-redis-0
+    ports:
+      - "6379:6379"                # host port 6379 -> container port 6379
+
+  redis-1:
+    image: redis:7-alpine
+    container_name: typeahead-redis-1
+    ports:
+      - "6380:6379"                # host port 6380 -> container's 6379
+
+  redis-2:
+    image: redis:7-alpine
+    container_name: typeahead-redis-2
+    ports:
+      - "6381:6379"                # host port 6381 -> container's 6379
