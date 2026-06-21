@@ -76,14 +76,10 @@ To stop the Redis nodes later: `docker compose down`.
 
 ## Screenshots
 
-Place images in a `screenshots/` folder and they'll render here:
-
 | | |
 |---|---|
-| ![Typeahead suggestions](screenshots/suggestions.png) | ![Cache HIT indicator](screenshots/cache-hit.png) |
-| ![Trending searches](screenshots/trending.png) | ![Activity log](screenshots/activity-log.png) |
-
-_(Add the screenshots before submitting — see the checklist note in the project chat.)_
+| **Home / UI overview**<br>![Home](public/screenshots/first.png) | **Typeahead suggestions** (top 10 by count)<br>![Suggestions](public/screenshots/search.png) |
+| **Cache HIT + trending** after a search<br>![Cache hit and trending](public/screenshots/trend.png) | **Server activity log** (batch flush + decay)<br>![Activity log](public/screenshots/logs.png) |
 
 ---
 
